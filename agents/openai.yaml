@@ -1,0 +1,4 @@
+interface:
+  display_name: "个人计划与复盘"
+  short_description: "管理长短期目标、每日与重复任务，结合日历排程，远端保存并按需检索和复盘"
+  default_prompt: "使用 $personal-plans 引导我配置共享资料仓库与日历，并制定可追踪的长短期计划。"

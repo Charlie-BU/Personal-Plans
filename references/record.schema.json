@@ -1,0 +1,595 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:personal-plans:record:v1",
+  "title": "Personal Plans authoritative record v1",
+  "description": "Portable record fields; model.py additionally checks dates/timezones, recurrence, reference safety and cross-record invariants. Index cards and report wrappers are not records.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "kind",
+    "status",
+    "title",
+    "summary",
+    "body",
+    "aliases",
+    "tags",
+    "parent_id",
+    "depends_on",
+    "priority",
+    "timezone",
+    "schedule",
+    "time_window",
+    "due_at",
+    "original_due_at",
+    "completed_at",
+    "completion_precision",
+    "period",
+    "recurrence",
+    "task_id",
+    "recurrence_id",
+    "notes",
+    "references",
+    "reminders",
+    "created_at",
+    "updated_at",
+    "revision"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,95}$"
+    },
+    "kind": {
+      "enum": [
+        "goal",
+        "milestone",
+        "occurrence",
+        "task"
+      ]
+    },
+    "status": {
+      "enum": [
+        "blocked",
+        "cancelled",
+        "completed",
+        "in_progress",
+        "paused",
+        "pending",
+        "skipped"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 180
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600
+    },
+    "body": {
+      "type": "string",
+      "maxLength": 16000
+    },
+    "aliases": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 100,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 100,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "parent_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,95}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "depends_on": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 100,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_-]{0,95}$"
+      }
+    },
+    "priority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "quadrant",
+        "source",
+        "reason"
+      ],
+      "properties": {
+        "quadrant": {
+          "enum": [
+            "important_not_urgent",
+            "important_urgent",
+            "neither",
+            "urgent_not_important"
+          ]
+        },
+        "source": {
+          "enum": [
+            "user",
+            "inferred",
+            "inherited"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      }
+    },
+    "timezone": {
+      "type": "string",
+      "minLength": 1
+    },
+    "schedule": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "start"
+          ],
+          "properties": {
+            "start": {
+              "$ref": "#/$defs/temporal"
+            },
+            "end": {
+              "$ref": "#/$defs/temporal"
+            }
+          }
+        }
+      ]
+    },
+    "time_window": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "date",
+            "label"
+          ],
+          "properties": {
+            "date": {
+              "$ref": "#/$defs/date"
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1
+            },
+            "estimated_minutes": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ]
+    },
+    "due_at": {
+      "$ref": "#/$defs/nullableTemporal"
+    },
+    "original_due_at": {
+      "$ref": "#/$defs/nullableTemporal"
+    },
+    "completed_at": {
+      "$ref": "#/$defs/nullableTemporal"
+    },
+    "completion_precision": {
+      "enum": [
+        null,
+        "instant",
+        "date"
+      ]
+    },
+    "period": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end"
+          ],
+          "properties": {
+            "start": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/date"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "end": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/date"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "recurrence": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "dtstart",
+            "rrule"
+          ],
+          "properties": {
+            "dtstart": {
+              "$ref": "#/$defs/temporal"
+            },
+            "rrule": {
+              "type": "string",
+              "maxLength": 1000
+            },
+            "stop_before": {
+              "$ref": "#/$defs/temporal"
+            },
+            "rdates": {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "$ref": "#/$defs/temporal"
+              }
+            },
+            "exdates": {
+              "type": "array",
+              "maxItems": 1000,
+              "items": {
+                "$ref": "#/$defs/temporal"
+              }
+            },
+            "day_filter": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "calendar_id",
+                "kind"
+              ],
+              "properties": {
+                "calendar_id": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_-]{0,95}$"
+                },
+                "kind": {
+                  "enum": [
+                    "workday",
+                    "restday",
+                    "statutory_holiday"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "task_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,95}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "recurrence_id": {
+      "$ref": "#/$defs/nullableTemporal"
+    },
+    "notes": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "at",
+          "actor",
+          "text"
+        ],
+        "properties": {
+          "at": {
+            "$ref": "#/$defs/timestamp"
+          },
+          "actor": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          }
+        }
+      }
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "namespace",
+          "id"
+        ],
+        "properties": {
+          "namespace": {
+            "type": "string",
+            "minLength": 1
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "snapshot": {
+            "type": "string",
+            "minLength": 1
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "reminders": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "anchor",
+          "offset_minutes",
+          "channel"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,95}$"
+          },
+          "anchor": {
+            "enum": [
+              "start",
+              "due"
+            ]
+          },
+          "offset_minutes": {
+            "type": "integer"
+          },
+          "channel": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "created_at": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "updated_at": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "measure": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "unit",
+            "target",
+            "current",
+            "method"
+          ],
+          "properties": {
+            "unit": {
+              "type": "string",
+              "minLength": 1
+            },
+            "target": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "current": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "method": {
+              "enum": [
+                "manual",
+                "leaf_completion"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "completed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "completed_at": {
+            "$ref": "#/$defs/temporal"
+          },
+          "completion_precision": {
+            "enum": [
+              "date",
+              "instant"
+            ]
+          },
+          "recurrence": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "completed_at": {
+            "type": "null"
+          },
+          "completion_precision": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "occurrence"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{0,95}$"
+          },
+          "recurrence_id": {
+            "$ref": "#/$defs/temporal"
+          },
+          "parent_id": {
+            "type": "null"
+          },
+          "recurrence": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "task_id": {
+            "type": "null"
+          },
+          "recurrence_id": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "skipped"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "kind": {
+            "const": "occurrence"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "date": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "temporal": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/date"
+        },
+        {
+          "$ref": "#/$defs/timestamp"
+        }
+      ]
+    },
+    "nullableTemporal": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/temporal"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}
