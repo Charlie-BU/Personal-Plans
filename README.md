@@ -25,7 +25,7 @@ This repository distributes the skill, **not your personal data**. Instructions 
 
 > Review this quarter, including my feedback. Distinguish confirmed completion from unknown outcomes.
 
-Reminders use concise tables or equivalent readable cards. For example, **fictional data**:
+Viewing plans, goals, agendas, search results, and period reviews defaults to concise tables, including a notes column; reminders follow the same rule. Explicit format requests take precedence. Empty results are stated directly, and channels without table support use readable cards or structured lines. For example, **fictional data**:
 
 | Time | Plan | Priority | Status | Notes |
 | --- | --- | --- | --- | --- |
