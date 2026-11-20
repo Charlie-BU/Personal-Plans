@@ -1,6 +1,6 @@
 # 共享仓库与连接契约
 
-Skill 与数据分开：本地仅安装技能代码/参考说明；个人资料只在用户指定远端仓库的 plans/。连接配置可用上下文、上层设置或可选 ~/.config/personal-plans/config.json；仓库、分支、凭据均不写死在通用 Skill。没有本机配置文件不阻塞已有授权上下文。
+Skill 与数据分开：技能目录只安装代码和说明；个人资料的权威来源是用户指定远端仓库的 plans/。已有授权 Git 工作区可复用。连接配置可用上下文、上层设置或可选 ~/.config/personal-plans/config.json；仓库、分支、凭据均不写死在通用 Skill。没有本机配置文件不阻塞已有授权上下文。
 
 ```text
 共享仓库/
@@ -33,6 +33,26 @@ Skill 与数据分开：本地仅安装技能代码/参考说明；个人资料�
 
 仓库可空可非空；只检查 plans/。缺失或空目录在用户接受建库流程后初始化；已有有效目录复用 ID；文件占位、陌生非空内容、读取失败和不完整清单均不初始化。不要自动迁移其他目录或覆盖根 README/.gitignore。
 
+## 复用已有 Git 工作区
+
+安装完整技能目录，包含 `SKILL.md`、`references/` 和 `scripts/`。在可复用的 Python 环境中一次安装 `scripts/requirements.txt`，用同一版本的脚本和说明。使用宿主已有 Git 认证和用户授权的工作区。这个入口不会克隆数据仓库，也无需额外建立应用缓存。
+
+先在工作区用宿主已有能力同步目标分支，取实际 commit 并在本次操作中固定。工作区必须已有该 commit 的 Git 对象；普通读取也可使用用户指定的历史 commit。Git 快照读取忽略工作树和暂存区，不会切换分支。下例中的 `$repo`、`$commit`、`$branch` 取用户已确认的目标，`$skill` 指向完整技能目录。
+
+```bash
+python3 -B "$skill/scripts/git_plans.py" --repo "$repo" --ref "$commit" status </dev/null
+python3 -B "$skill/scripts/git_plans.py" --repo "$repo" --ref "$commit" query <query.json
+python3 -B "$skill/scripts/git_plans.py" --repo "$repo" --ref "$commit" apply <request.json
+python3 -B "$skill/scripts/git_plans.py" --repo "$repo" --ref "$commit" \
+  --publish origin "$branch" apply <request.json
+```
+
+输入与原脚本的 `query`、`plan`、`request`、`settings` 字段一致；Git 入口负责快照、文件和清单。写入的 `base_commit` 保留在原请求要求的位置。示例中的 JSON 是宿主提供的标准输入，也可直接通过管道传入。读取自动补齐单页所需的文件；需要完整结果时按 `next_offset` 续页，并始终使用同一 commit。执行写入时才批量读取完整的 `plans/`，整批兼容变更可使用原有 `apply` 的 `changes`。未使用 `--publish` 时只准备差异。已有分支的首个 `plans/` 初始化可走此入口；空仓库首次建分支走宿主的首提交流程。
+
+显式发布只使用已配置且读写 URL 相同的单一 Git remote。先检查远端分支，再生成以校验基准为唯一父提交的候选，用绑定该父提交的 lease 更新分支。即使分支在检查后被回退，lease 也拒绝写入；候选只允许快进。发布后回读远端分支的提交哈希，哈希相等确认了整个树与已构造的候选一致。需要展示保存内容时，按此提交定向回读受影响记录和操作回执。若 Git 返回 `publication_unconfirmed`，保存候选 commit 和原操作 ID。先核对候选是否在当前远端分支的祖先链，以及回执和记录是否正确，再决定是否重做。不要用新的操作 ID 重试未知结果。
+
+仅有连接器时继续使用原有标准输入协议，按固定快照读取。单次写入优先采用宿主可用的范围限定批量传输；缺少批量路径时要明确逐文件读取成本。避免把完整快照或大段 base64 传进模型上下文。
+
 ## 读取
 
 1. 发现与明确仓库/身份匹配的 Git/连接器工具，读取元数据和分支 HEAD。
@@ -46,7 +66,7 @@ Skill 与数据分开：本地仅安装技能代码/参考说明；个人资料�
 
 完整读取 plans/ 子树，在内存通过辅助脚本准备。输出文件和删除路径始终仓库相对、带 plans/ 前缀。以仓库原有树为基础仅应用这些局部变化，禁止用 plans/ 内容替换整棵树。所有权威记录、活动、索引、manifest、操作去重同一次 commit 发布，非强制更新分支。
 
-base_commit 是整个仓库 HEAD。即使另一 Skill 只改 atlas/，也要重新读取当前 HEAD 和 plans/，核对原操作是否已存在，然后重新生成提案；不能只改版本号、强推或覆盖别人变更。业务 record 更新还需 expected_sha256。新操作生成唯一稳定 operation_id，响应丢失先查原操作和候选提交，不用新 ID 盲目重试。
+base_commit 是整个仓库 HEAD。如果另一 Skill 推进了 HEAD，从最新提交重新准备并核对原操作是否已存在。Git 工作区可复用已有对象，重新准备仍校验该提交的完整 plans/。业务 record 更新还需 expected_sha256。新操作生成唯一稳定 operation_id，响应丢失先查原操作和候选提交，不用新 ID 盲目重试。
 
 init 和普通操作返回 prepared、remote_confirmed=false，只说明校验和准备完成。工具提交后，回读实际 commit、vault/index revision、记录和相应 operation_id；HEAD 已前进时验证候选提交在分支祖先中且内容正确。只回读任意新 HEAD 不算确认。
 
