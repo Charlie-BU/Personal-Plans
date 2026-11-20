@@ -723,7 +723,7 @@ def agenda(store, a, b, as_of, carry_over=False):
     }
 
 
-def report(store, a, b, as_of):
+def report(store, a, b, as_of, *, include_progress=False):
     result = agenda(store, a, b, as_of)
     vault, _ = store.entry()
     view_zone = zone(vault["timezone"])
@@ -780,7 +780,7 @@ def report(store, a, b, as_of):
         and temporal(r["original_due_at"], r["timezone"], True) <= instant(as_of)
         and r["status"] not in {"cancelled", "skipped"}
     ]
-    return {
+    result = {
         "status": "ok",
         "snapshot": store.commit,
         "from": a,
@@ -815,6 +815,27 @@ def report(store, a, b, as_of):
             "No actual-duration or historical-as-of-state inference.",
         ],
     }
+
+
+    if include_progress:
+        # The completion cohort answers what was done during the window.
+        # The deadline cohort above answers how scheduled commitments went.
+        finished = []
+        for item in leaves:
+            completed_at = item.get("completed_at")
+            if item.get("status") != "completed" or not completed_at:
+                continue
+            completed_day = (completed_at if item.get("completion_precision") == "date"
+                             else instant(completed_at).astimezone(view_zone).date().isoformat())
+            if a <= completed_day <= b:
+                finished.append({
+                    "id": item["id"], "title": item["title"],
+                    "completed_on": completed_day, "path": item["path"],
+                })
+        finished.sort(key=lambda item: (item["completed_on"], item["id"]), reverse=True)
+        result["completed_within_report_scope_count"] = len(finished)
+        result["recent_completions"] = finished[:8]
+    return result
 
 
 def defaults(raw, stamp):
