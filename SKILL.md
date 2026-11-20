@@ -15,15 +15,14 @@ Calendar 必须进入 onboarding 和每日排程：发现实际可用工具、�
 
 ## 存储与工具
 
-- 每轮先读取固定的本机连接配置 `~/.config/personal-plans/config.json`（`~` 为当前用户主目录，不是工作目录或 Skill 目录）。配置解析与保存按 [storage.md](references/storage.md) 的“连接配置位置与续用”执行；已有有效配置直接复用，只询问仍缺失或冲突的字段。用户确认仓库后应持久保存并回读，不只留在聊天中；缺本机配置不代表未配置过或没有计划，先复用本轮及已有明确授权来源。remote 必需，branch 可查询默认值；不猜仓库或个人身份，不把凭据写入配置或资料。
-- 只管理仓库根目录 `plans/`；任意空/非空仓库均可。目录不存在或为空且用户授权初始化才新建；有效目录复用；文件占位、不兼容内容、权限失败或清单截断均不覆盖。`atlas/`、`health/` 和根文件保持原状。
-- 远端传输使用宿主已有的 Git/连接器能力。脚本不联网、不认证、不发布、不发送通知，也不建立本地资料库、缓存或离线队列。缺能力如实报告。
-- 固定整个仓库 commit；读取只取所需 plans/ 文件。写入需完整 plans/ 子树，以现有仓库树为基础一次提交正文、活动、索引和操作记录；检查 base_commit，禁止强推。其他 Skill 推进 HEAD 后也须重读、核对并重建提案。
-- `scripts/plans.py --stdin` 仅在内存计算，返回 prepared 不等于远端保存。由工具发布、回读提交和 operation_id 后才报告成功。详见 [storage.md](references/storage.md)。
+- 复用已确认的仓库、分支和连接。需要定位时用已有配置或当前授权上下文，具体见 [storage.md](references/storage.md)。只管理仓库根目录的 `plans/`。
+- 已有用户授权的 Git 工作区时，优先用 `scripts/git_plans.py`。固定同步后的 commit，精确查询在同一进程补齐所需原文；写入以一次批量读取完成完整校验，把兼容变更放在同一请求。使用方式、发布确认及恢复见 [storage.md](references/storage.md)。
+- 只有连接器时，固定 commit 并沿用 `scripts/plans.py --stdin`。查询按需读取，写入优先使用同一快照的批量传输。脚本缺失时，从已确认版本补齐完整技能包。没有受信任的完整校验或原子发布能力时，说明写入停在哪一步。
+- 发布必须保留完整性校验、稳定的操作 ID 和针对实际基准的并发保护。远端确认前只报告已准备。外部日历和通知由宿主另行执行及回读。
 
 ## 精确消费数据
 
-开始问题先加载 [retrieval.md](references/retrieval.md)。采用“独立 JSON 权威记录 + 16 个条件→ID 分片 + 16 个唯一记录卡片分片”，不要求先读全库或全图，不引入向量服务。只支持 index_format=2；原始数据不改，索引重建用 reindex，见 storage.md。
+需要了解查询参数、分片或给连接器补文件时，按 [retrieval.md](references/retrieval.md) 执行。采用“独立 JSON 权威记录 + 16 个条件→ID 分片 + 16 个唯一记录卡片分片”，不要求先读全库或全图，不引入向量服务。只支持 index_format=2；原始数据不改，索引重建用 reindex，见 storage.md。
 
 1. 将问题拆成 ID、日期、类型、状态、优先级、上级目标、依赖或来源等确定约束。用别名消歧；“本周”用用户时区和当前真实日期解析，不套用演示日期。
 2. 固定 commit 读 plans/vault.json 与 plans/indexes/root.json，再由脚本请求精确路径。needs_files 表示同一快照还缺文件；按返回路径补读后继续，不能当作零命中。refine_query 表示候选太多，先收窄范围。

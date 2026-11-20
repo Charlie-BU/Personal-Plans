@@ -74,7 +74,7 @@ def safe_path(path):
 
 
 class Store:
-    def __init__(self, envelope):
+    def __init__(self, envelope, *, raw_files=None):
         self.commit = envelope.get("snapshot")
         require(
             self.commit is None
@@ -83,6 +83,9 @@ class Store:
             "Snapshot must be a repository commit",
         )
         self.complete = envelope.get("complete") is True
+        if raw_files is not None:
+            self.files = raw_files
+            return
         require(
             isinstance(envelope.get("files_base64"), dict),
             "files_base64 mapping required",
@@ -1762,7 +1765,10 @@ def ics(store, a, b, as_of):
 
 
 def run(envelope, command, arguments):
-    store = Store(envelope)
+    return run_store(Store(envelope), envelope, command, arguments)
+
+
+def run_store(store, envelope, command, arguments):
     if command == "init":
         return initialize(store, envelope.get("settings", {}))
     if command == "apply":
