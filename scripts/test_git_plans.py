@@ -101,3 +101,48 @@ class GitTransportTests(unittest.TestCase):
         proposal = self.initial.run(self.settings, args("init"))
         with self.assertRaisesRegex(PlanError, "same fetch and push URL"):
             self.initial.publish(proposal, "origin", "main")
+
+    def test_review_uses_vault_timezone_and_one_snapshot_for_metrics_and_feedback(self):
+        snapshot = self.seed()
+        stamp = "2026-10-19T02:00:00+08:00"
+        base = {"actor": "fixture", "recorded_at": stamp, "base_commit": snapshot.commit}
+        create = {**base, "operation_id": "op_review_setup", "changes": [
+            {"action": "create", "record": task()},
+            {"action": "create", "record": task("t_open")},
+        ]}
+        snapshot.publish(snapshot.run({"plan": create}, args("apply")), "origin", "main")
+        snapshot = self.snapshot()
+        sha = snapshot.run({}, args("read", "task_a"))["sha256"]
+        complete = {**base, "base_commit": snapshot.commit, "operation_id": "op_review_complete",
+                    "changes": [{"action": "complete", "id": "task_a", "expected_sha256": sha,
+                                 "completed_at": "2026-10-18", "completion_precision": "date"}]}
+        snapshot.publish(snapshot.run({"plan": complete}, args("apply")), "origin", "main")
+        snapshot = self.snapshot()
+        feedback = {**base, "base_commit": snapshot.commit, "operation_id": "op_review_feedback",
+                    "kind": "period-note", "value": {"scope": {"kind": "day",
+                    "start": "2026-10-18", "end": "2026-10-18", "label": "day",
+                    "timezone": "Asia/Shanghai", "plan_id": None},
+                    "text": "fixture feedback", "basis": "user_statement",
+                    "completion": "partly completed"}}
+        snapshot.publish(snapshot.run({"request": feedback}, args("configure")), "origin", "main")
+        latest = self.snapshot()
+        result = latest.run({}, git_plans.operation_args(
+            ["review", "--as-of", "2026-10-18T19:00:00+00:00"]))
+        self.assertEqual(result["snapshot"], latest.commit)
+        self.assertEqual((result["from"], result["to"]), ("2026-10-17", "2026-10-19"))
+        self.assertEqual(result["timezone"], "Asia/Shanghai")
+        self.assertEqual((result["completed_count"], result["due_count"], result["unconfirmed"]),
+                         (1, 2, 1))
+        self.assertEqual(result["completion_rate"], 0.5)
+        self.assertEqual(result["recent_completions"][0]["id"], "task_a")
+        self.assertEqual([item["latest"]["text"] for item in result["daily_feedback"]],
+                         ["fixture feedback"])
+
+    def test_review_empty_period_has_no_completion_rate_or_feedback(self):
+        latest = self.seed()
+        result = latest.run({}, git_plans.operation_args(
+            ["review", "--days", "1", "--as-of", STAMP]))
+        self.assertEqual(result["due_count"], 0)
+        self.assertIsNone(result["completion_rate"])
+        self.assertEqual(result["recent_completions"], [])
+        self.assertEqual(result["daily_feedback"], [])
