@@ -16,8 +16,8 @@ Calendar 必须进入 onboarding 和每日排程：发现实际可用工具、�
 ## 存储与工具
 
 - 复用已确认的仓库、分支和连接。需要定位时用已有配置或当前授权上下文，具体见 [storage.md](references/storage.md)。只管理仓库根目录的 `plans/`。
-- 已有用户授权的 Git 工作区时，优先用 `scripts/git_plans.py`。固定同步后的 commit，精确查询在同一进程补齐所需原文；写入以一次批量读取完成完整校验，把兼容变更放在同一请求。使用方式、发布确认及恢复见 [storage.md](references/storage.md)。
-- 只有连接器时，固定 commit 并沿用 `scripts/plans.py --stdin`。查询按需读取，写入优先使用同一快照的批量传输。脚本缺失时，从已确认版本补齐完整技能包。没有受信任的完整校验或原子发布能力时，说明写入停在哪一步。
+- 先复用已有授权且能同步目标分支的 Git 工作区，使用 `scripts/git_plans.py`。固定同步后的 commit，精确查询在同一进程补齐所需原文；写入以一次批量读取完成完整校验，把兼容变更放在同一请求。使用方式、发布确认及恢复见 [storage.md](references/storage.md)。
+- Git 工作区缺失或不可用时，说明具体原因，并提醒用户配置或修复已授权的 Git 工作区。此时才回退到可用的连接器，固定 commit 并沿用 `scripts/plans.py --stdin`。查询按需读取，写入优先使用同一快照的批量传输。脚本缺失时，从已确认版本补齐完整技能包。没有受信任的完整校验或原子发布能力时，说明写入停在哪一步。
 - 发布必须保留完整性校验、稳定的操作 ID 和针对实际基准的并发保护。远端确认前只报告已准备。外部日历和通知由宿主另行执行及回读。
 
 ## 精确消费数据
@@ -73,7 +73,7 @@ Calendar 必须进入 onboarding 和每日排程：发现实际可用工具、�
 
 ## 本地验证与使用
 
-辅助脚本需要 Python 3.9+；重复规则使用 python-dateutil，缺依赖时按 scripts/requirements.txt 在宿主允许的环境安装，不暗中降级为猜日期。读取 JSON 索引可直接用已有工具，写入仍需受信任的等价校验能力。
+辅助脚本需要 Python 3.9+。复用已验证可用的 Python 环境；新建环境时优先 Python 3.14，宿主不支持时选择其他已验证版本。重复规则使用 python-dateutil，缺依赖时按 scripts/requirements.txt 在宿主允许的环境安装，不暗中降级为猜日期。读取 JSON 索引可直接用已有工具，写入仍需受信任的等价校验能力。
 
 - 合成演示：`python3 -B <skill>/scripts/demo.py`。不连接账号、不写个人资料。
 - 自动验证：`python3 -B -m unittest discover -s <skill>/scripts -p 'test_*.py' -v`。
